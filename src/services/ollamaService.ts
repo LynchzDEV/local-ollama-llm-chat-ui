@@ -3,7 +3,7 @@ import ollama from "ollama";
 export const getCompletion = async (prompt: string) => {
   try {
     const output = await ollama.generate({
-      model: "deepseek-r1:8b",
+      model: "deepseek-r1:7b",
       prompt,
     });
 
