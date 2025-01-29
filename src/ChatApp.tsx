@@ -1,9 +1,12 @@
 import { useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import ollamaService from "./services/ollamaService";
 
 const ChatApp = () => {
   const [messages, setMessages] = useState<string[]>([]);
   const [prompt, setPrompt] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
 
   const handleSendMessage = async () => {
     if (!prompt.trim()) return;
@@ -11,19 +14,44 @@ const ChatApp = () => {
     try {
       const userMessage = `User: ${prompt}`;
       setMessages((prev) => [...prev, userMessage]);
+      setPrompt("");
+      setIsTyping(true);
 
       const response = await ollamaService.getCompletion(prompt);
+      setIsTyping(false);
+
       const botMessage = `Bot: ${response}`;
       setMessages((prev) => [...prev, botMessage]);
-
-      setPrompt("");
     } catch (error) {
       console.error("Error:", error);
+      setIsTyping(false);
       setMessages((prev) => [
         ...prev,
         "Bot: An error occurred while generating a response.",
       ]);
     }
+  };
+
+  const parseMessage = (msg: string) => {
+    return msg.split(/<think>(.*?)<\/think>/gs).map((part, index) => {
+      if (index % 2 === 1 && part.trim().length > 0) {
+        return (
+          <details key={index} className="collapse bg-base-300 rounded-lg p-2">
+            <summary className="cursor-pointer font-semibold">
+              Show Details
+            </summary>
+            <div className="mt-2 p-2 bg-base-100 rounded-lg">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{part}</ReactMarkdown>
+            </div>
+          </details>
+        );
+      }
+      return (
+        <ReactMarkdown key={index} remarkPlugins={[remarkGfm]}>
+          {part}
+        </ReactMarkdown>
+      );
+    });
   };
 
   return (
@@ -41,18 +69,28 @@ const ChatApp = () => {
                   className={`chat ${isUser ? "chat-end" : "chat-start"}`}
                 >
                   <div
-                    className={`chat-bubble ${isUser ? "chat-bubble-primary" : "chat-bubble-secondary"}`}
+                    className={`chat-bubble ${
+                      isUser ? "chat-bubble-primary" : "chat-bubble-secondary"
+                    }`}
                   >
                     <span className="font-semibold">
                       {isUser ? "You:" : "Bot:"}
                     </span>
                     <span className="ml-1">
-                      {msg.replace(/^User: |^Bot: /, "")}
+                      {parseMessage(msg.replace(/^User: |^Bot: /, ""))}
                     </span>
                   </div>
                 </div>
               );
             })}
+            {isTyping && (
+              <div className="chat chat-start">
+                <div className="chat-bubble chat-bubble-secondary">
+                  <span className="font-semibold">Bot:</span>
+                  <span className="ml-1 animate-pulse">thinking...</span>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-2">
