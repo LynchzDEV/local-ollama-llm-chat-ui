@@ -9,7 +9,9 @@ const ChatApp = () => {
   const [messages, setMessages] = useState<string[]>([]);
   const [prompt, setPrompt] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [responseTime, setResponseTime] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const [realTimeResponse, setRealTimeResponse] = useState<number | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -19,6 +21,21 @@ const ChatApp = () => {
     scrollToBottom();
   }, [messages]);
 
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+    if (isTyping) {
+      const startTime = new Date().getTime();
+      interval = setInterval(() => {
+        const currentTime = new Date().getTime();
+        setRealTimeResponse(currentTime - startTime);
+      }, 100);
+    } else {
+      clearInterval(interval);
+      setRealTimeResponse(null);
+    }
+    return () => clearInterval(interval);
+  }, [isTyping]);
+
   const handleSendMessage = async () => {
     if (!prompt.trim()) return;
 
@@ -27,9 +44,16 @@ const ChatApp = () => {
       setMessages((prev) => [...prev, userMessage]);
       setPrompt("");
       setIsTyping(true);
+      setResponseTime(null);
+
+      const startTime = new Date().getTime();
 
       const response = await ollamaService.getCompletion(prompt);
+      const endTime = new Date().getTime();
+      const timeTaken = endTime - startTime;
+
       setIsTyping(false);
+      setResponseTime(timeTaken);
 
       const botMessage = `Bot: ${response}`;
       setMessages((prev) => [...prev, botMessage]);
@@ -71,7 +95,11 @@ const ChatApp = () => {
                     const match = /language-(\w+)/.exec(className || "");
                     return match ? (
                       <SyntaxHighlighter
-                        style={solarizedlight}
+                        style={
+                          solarizedlight as {
+                            [key: string]: React.CSSProperties;
+                          }
+                        }
                         language={match[1]}
                         PreTag="div"
                         {...props}
@@ -110,7 +138,9 @@ const ChatApp = () => {
               const match = /language-(\w+)/.exec(className || "");
               return match ? (
                 <SyntaxHighlighter
-                  style={solarizedlight}
+                  style={
+                    solarizedlight as { [key: string]: React.CSSProperties }
+                  }
                   language={match[1]}
                   PreTag="div"
                   {...props}
@@ -167,6 +197,7 @@ const ChatApp = () => {
                   <span className="ml-1 animate-pulse">
                     bro aint thinker 💀...
                   </span>
+                  <span></span>
                 </div>
               </div>
             )}
@@ -186,6 +217,16 @@ const ChatApp = () => {
               Send
             </button>
           </div>
+          {responseTime !== null && (
+            <div className="text-center mt-2">
+              Response time: {responseTime} ms
+            </div>
+          )}
+          {realTimeResponse !== null && (
+            <div className="text-center mt-2">
+              Real-time response: {realTimeResponse} ms
+            </div>
+          )}
         </div>
       </div>
     </div>
